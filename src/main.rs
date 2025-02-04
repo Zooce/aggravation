@@ -24,7 +24,7 @@ use vexation::VexationPlugin;
 fn main() {
     App::new()
         // resources
-        .insert_resource(ClearColor(Color::rgb(0.4, 0.4, 0.4)))
+        .insert_resource(ClearColor(Color::srgb(0.4, 0.4, 0.4)))
 
         .add_systems(Startup, setup)
 
@@ -46,7 +46,7 @@ fn main() {
 }
 
 pub fn setup(mut commands: Commands) {
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn(Camera2d::default());
 }
 
 // TODO: consider using https://github.com/IyesGames/iyes_loopless to organize this turn-based game

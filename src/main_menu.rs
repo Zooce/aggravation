@@ -71,11 +71,11 @@ fn setup(
         // font: asset_server.load("Kenney Thick.ttf"),
         mini_font: asset_server.load("Kenney Mini.ttf"),
         title: asset_server.load("title.png"),
-        play_button: load_sprite_sheet("buttons/play_button.png", UI_BUTTON_SIZE.clone(), grid, &asset_server, &mut texture_atlases),
-        rules_button: load_sprite_sheet("buttons/rules_button.png", UI_BUTTON_SIZE.clone(), grid, &asset_server, &mut texture_atlases),
-        quit_button: load_sprite_sheet("buttons/quit_button.png", UI_BUTTON_SIZE.clone(), grid, &asset_server, &mut texture_atlases),
-        back_button: load_sprite_sheet("buttons/back_button.png", UI_BUTTON_SIZE.clone(), grid, &asset_server, &mut texture_atlases),
-        next_button: load_sprite_sheet("buttons/next_button.png", UI_BUTTON_SIZE.clone(), grid, &asset_server, &mut texture_atlases),
+        play_button: load_sprite_sheet("buttons/play_button.png", UI_BUTTON_SIZE, grid, &asset_server, &mut texture_atlases),
+        rules_button: load_sprite_sheet("buttons/rules_button.png", UI_BUTTON_SIZE, grid, &asset_server, &mut texture_atlases),
+        quit_button: load_sprite_sheet("buttons/quit_button.png", UI_BUTTON_SIZE, grid, &asset_server, &mut texture_atlases),
+        back_button: load_sprite_sheet("buttons/back_button.png", UI_BUTTON_SIZE, grid, &asset_server, &mut texture_atlases),
+        next_button: load_sprite_sheet("buttons/next_button.png", UI_BUTTON_SIZE, grid, &asset_server, &mut texture_atlases),
     });
 }
 

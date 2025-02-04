@@ -56,17 +56,17 @@ impl From<usize> for PowerUp {
 struct PowerUpDistribution(pub WeightedIndex<usize>);
 
 #[derive(Resource)]
-pub struct PowerUpSpriteSheets {
-    pub roll_again: Handle<TextureAtlas>,
-    pub double_dice: Handle<TextureAtlas>,
-    pub evade_capture: Handle<TextureAtlas>,
-    pub self_jump: Handle<TextureAtlas>,
-    pub capture_nearest: Handle<TextureAtlas>,
-    pub home_run: Handle<TextureAtlas>,
+pub struct PowerUpSpriteImages {
+    pub roll_again: Handle<Image>,
+    pub double_dice: Handle<Image>,
+    pub evade_capture: Handle<Image>,
+    pub self_jump: Handle<Image>,
+    pub capture_nearest: Handle<Image>,
+    pub home_run: Handle<Image>,
 }
 
 #[derive(Resource)]
-pub struct PowerUpHighlights {
+pub struct PowerUpHighlightImages {
     pub evading: Handle<Image>,
     pub self_jumping: Handle<Image>,
 }
@@ -152,7 +152,7 @@ fn handle_power_events(
     mut activate_events: EventWriter<ActivatePowerUpEvent>,
     mut power_bars: Query<(&mut PowerBar, &mut Transform, &Player)>,
 ) {
-    for event in power_events.iter() {
+    for event in power_events.read() {
         for (player, power) in match event {
             PowerEvent::Capture{ captor, captive } => {
                 vec![
@@ -216,11 +216,11 @@ fn generate_power_up(
     mut game_data: ResMut<GameData>,
     power_up_dist: Res<PowerUpDistribution>,
     mut commands: Commands,
-    power_up_sprite_sheets: Res<PowerUpSpriteSheets>,
+    power_up_sprite_images: Res<PowerUpSpriteImages>,
     human_player: Res<HumanPlayer>,
 ) {
     let mut rng = thread_rng();
-    for GeneratePowerUpEvent(player) in power_up_events.iter() {
+    for GeneratePowerUpEvent(player) in power_up_events.read() {
         // spawn the power up button first
         let (x, y) = match player {
             Player::Red => (-6.5, 2.5),
@@ -239,18 +239,18 @@ fn generate_power_up(
         // randomly generate the power up
         let power_up: PowerUp = power_up_dist.0.sample(&mut rng).into();
 
-        let sprite_sheet = SpriteSheetBundle{
-            texture_atlas: match power_up {
-                PowerUp::RollAgain => power_up_sprite_sheets.roll_again.clone(),
-                PowerUp::DoubleDice => power_up_sprite_sheets.double_dice.clone(),
-                PowerUp::EvadeCapture => power_up_sprite_sheets.evade_capture.clone(),
-                PowerUp::SelfJump => power_up_sprite_sheets.self_jump.clone(),
-                PowerUp::CaptureNearest => power_up_sprite_sheets.capture_nearest.clone(),
-                PowerUp::HomeRun => power_up_sprite_sheets.home_run.clone(),
+        let sprite_sheet = Sprite{
+            image: match power_up {
+                PowerUp::RollAgain => power_up_sprite_images.roll_again.clone(),
+                PowerUp::DoubleDice => power_up_sprite_images.double_dice.clone(),
+                PowerUp::EvadeCapture => power_up_sprite_images.evade_capture.clone(),
+                PowerUp::SelfJump => power_up_sprite_images.self_jump.clone(),
+                PowerUp::CaptureNearest => power_up_sprite_images.capture_nearest.clone(),
+                PowerUp::HomeRun => power_up_sprite_images.home_run.clone(),
             },
-            transform: Transform::from_xyz(x * TILE_SIZE, (y + 1.5 * (i as f32)) * TILE_SIZE, Z_UI),
             ..default()
         };
+        let transform = Transform::from_xyz(x * TILE_SIZE, (y + 1.5 * (i as f32)) * TILE_SIZE, Z_UI);
         let action = ButtonAction(ActionEvent(match i {
             0 => GameButtonAction::PowerUpOne(*player),
             1 => GameButtonAction::PowerUpTwo(*player),
@@ -262,12 +262,13 @@ fn generate_power_up(
             // only want to add button state and size if this is for the human player - we don't want them interacting with the computer players' buttons
             commands.spawn((
                 sprite_sheet,
+                transform,
                 action,
                 ButtonState::NotHovered,
-                ButtonSize(TILE_BUTTON_SIZE.clone())
+                ButtonSize(TILE_BUTTON_SIZE)
             )).id()
         } else {
-            commands.spawn((sprite_sheet, action)).id()
+            commands.spawn((sprite_sheet, transform, action)).id()
         };
         game_data.players.get_mut(&player).unwrap().power_ups[i] = Some((power_up, power_up_button));
     }
@@ -281,10 +282,10 @@ fn activate_power_up(
     mut dice_data: ResMut<DiceData>,
     current_player_data: Res<CurrentPlayerData>,
     mut marbles: Query<Entity, (With<Marble>, With<CurrentPlayer>)>,
-    power_up_highlights: Res<PowerUpHighlights>,
+    power_up_highlight_images: Res<PowerUpHighlightImages>,
 ) {
     let player_data = game_data.players.get_mut(&current_player_data.player).unwrap();
-    for event in events.iter() {
+    for event in events.read() {
         if let Some(new_state) = match event.0 {
             PowerUp::RollAgain => Some(GameState::DiceRoll),
             PowerUp::DoubleDice => {
@@ -298,11 +299,11 @@ fn activate_power_up(
                         .with_children(|parent| {
                             parent.spawn((
                                 Evading,
-                                SpriteBundle{
-                                    transform: Transform::from_xyz(0., 0., 1.),
-                                    texture: power_up_highlights.evading.clone(),
+                                Sprite{
+                                    image: power_up_highlight_images.evading.clone(),
                                     ..default()
                                 },
+                                Transform::from_xyz(0., 0., 1.),
                             ));
                         });
                     }
@@ -316,11 +317,11 @@ fn activate_power_up(
                         .with_children(|parent| {
                             parent.spawn((
                                 SelfJumping,
-                                SpriteBundle{
-                                    transform: Transform::from_xyz(0., 0., 1.),
-                                    texture: power_up_highlights.self_jumping.clone(),
+                                Sprite{
+                                    image: power_up_highlight_images.self_jumping.clone(),
                                     ..default()
                                 },
+                                Transform::from_xyz(0., 0., 1.),
                             ));
                         });
                     }
@@ -348,7 +349,7 @@ fn power_down_event_handler(
     evading: Query<(Entity, &Parent), With<Evading>>,
     jumping: Query<(Entity, &Parent), With<SelfJumping>>,
 ) {
-    for event in power_down_events.iter() {
+    for event in power_down_events.read() {
         match event {
             PowerDownEvent::Evading(player) => {
                 for (highlight_entity, parent) in evading.iter() {

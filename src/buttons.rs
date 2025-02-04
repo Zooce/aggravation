@@ -26,12 +26,12 @@ pub struct Hidable;
 /// This system is responsible for changing button states based on the mouse location and its
 /// button status.
 pub fn mouse_watcher<T: Copy + Send + Sync + 'static>(
-    mouse_button_inputs: Res<Input<MouseButton>>,
+    mouse_button_inputs: Res<ButtonInput<MouseButton>>,
     mut cursor_moved_events: EventReader<CursorMoved>,
     mut button_query: Query<(&mut ButtonState, &ButtonAction<T>, &Transform, &ButtonSize)>,
     mut action_events: EventWriter<ActionEvent<T>>,
 ) {
-    let cursor_move_event = cursor_moved_events.iter().last();
+    let cursor_move_event = cursor_moved_events.read().last();
 
     for (mut button_state, action, transform, button_size) in &mut button_query {
         match (*button_state, cursor_move_event) {
@@ -52,7 +52,7 @@ pub fn mouse_watcher<T: Copy + Send + Sync + 'static>(
             (ButtonState::Pressed, moved) => {
                 if mouse_button_inputs.just_released(MouseButton::Left) {
                     *button_state = ButtonState::Hovered;
-                    action_events.send(action.0)
+                    action_events.send(action.0);
                 } else if let Some(move_event) = moved {
                     if !is_in_bounds(move_event.position, transform.translation, button_size.0) {
                         *button_state = ButtonState::PressedNotHovered;
@@ -106,13 +106,13 @@ pub fn get_button_state(
 
 /// This system is responsible for reacting to button state changes.
 pub fn watch_button_state_changes(
-    mut button_query: Query<(&mut TextureAtlasSprite, &ButtonState), Changed<ButtonState>>
+    mut button_query: Query<(&mut TextureAtlas, &ButtonState), Changed<ButtonState>>
 ) {
-    for (mut sprite, state) in &mut button_query {
+    for (mut atlas, state) in &mut button_query {
         match *state {
-            ButtonState::NotHovered => sprite.index = 0,
-            ButtonState::Hovered => sprite.index = 1,
-            ButtonState::Pressed => sprite.index = 2,
+            ButtonState::NotHovered => atlas.index = 0,
+            ButtonState::Hovered => atlas.index = 1,
+            ButtonState::Pressed => atlas.index = 2,
             _ => {}
         }
     }
@@ -120,7 +120,7 @@ pub fn watch_button_state_changes(
 
 pub fn spawn_sprite_sheet_button<T: Send + Sync + 'static>(
     parent: &mut ChildBuilder,
-    texture_atlas: Handle<TextureAtlas>,
+    texture_atlas_layout: Handle<TextureAtlasLayout>,
     transform: Transform,
     action: ButtonAction<T>,
     visibility: Visibility,
@@ -129,20 +129,21 @@ pub fn spawn_sprite_sheet_button<T: Send + Sync + 'static>(
 ) {
     parent
         .spawn((
-            SpriteSheetBundle{
-                sprite: TextureAtlasSprite {
-                    index: match button_state {
-                        ButtonState::NotHovered => 0,
-                        ButtonState::Hovered => 1,
-                        ButtonState::Pressed | ButtonState::PressedNotHovered => 2,
-                    },
-                    ..default()
-                },
-                texture_atlas,
-                transform,
-                visibility,
+            Sprite{
+                texture_atlas: Some(
+                    TextureAtlas{
+                        layout: texture_atlas_layout,
+                        index: match button_state {
+                            ButtonState::NotHovered => 0,
+                            ButtonState::Hovered => 1,
+                            ButtonState::Pressed | ButtonState::PressedNotHovered => 2,
+                        },
+                    }
+                ),
                 ..default()
             },
+            transform,
+            visibility,
             button_state,
             button_size,
             action,
@@ -150,7 +151,7 @@ pub fn spawn_sprite_sheet_button<T: Send + Sync + 'static>(
 }
 
 pub fn sprite_sheet_button_bundle<T: Send + Sync + 'static>(
-    texture_atlas: Handle<TextureAtlas>,
+    texture_atlas_layout: Handle<TextureAtlasLayout>,
     transform: Transform,
     action: ButtonAction<T>,
     visibility: Visibility,
@@ -158,20 +159,21 @@ pub fn sprite_sheet_button_bundle<T: Send + Sync + 'static>(
     button_size: ButtonSize,
 ) -> impl Bundle {
     (
-        SpriteSheetBundle{
-            sprite: TextureAtlasSprite{
-                index: match button_state {
-                    ButtonState::NotHovered => 0,
-                    ButtonState::Hovered => 1,
-                    ButtonState::Pressed | ButtonState::PressedNotHovered => 2,
-                },
-                ..default()
-            },
-            texture_atlas,
-            transform,
-            visibility,
+        Sprite{
+            texture_atlas: Some(
+                TextureAtlas{
+                    layout: texture_atlas_layout,
+                    index: match button_state {
+                        ButtonState::NotHovered => 0,
+                        ButtonState::Hovered => 1,
+                        ButtonState::Pressed | ButtonState::PressedNotHovered => 2,
+                    },
+                }
+            ),
             ..default()
         },
+        transform,
+        visibility,
         button_state,
         button_size,
         action,
@@ -180,12 +182,18 @@ pub fn sprite_sheet_button_bundle<T: Send + Sync + 'static>(
 
 pub fn load_sprite_sheet(
     name: &str,
-    size: Vec2,
-    (cols, rows): (usize, usize),
+    size: UVec2,
+    (cols, rows): (u32, u32),
     asset_server: &Res<AssetServer>,
-    texture_atlases: &mut ResMut<Assets<TextureAtlas>>,
-) -> Handle<TextureAtlas> {
-    texture_atlases.add(TextureAtlas::from_grid(
-        asset_server.load(name), size, cols, rows, None, None
-    ))
+    textures: &mut ResMut<Assets<Image>>,
+    texture_atlases: &mut ResMut<Assets<TextureAtlasLayout>>,
+) -> Handle<Image> {
+    let texture = asset_server.load(name);
+    let id = texture.id();
+    let mut texture_atlas_builder = TextureAtlasBuilder::default();
+    texture_atlas_builder.add_texture(Some(id), textures.get(id).unwrap());
+    texture_atlases.add(TextureAtlasLayout::from_grid(
+        size, cols, rows, None, None
+    ));
+    texture
 }

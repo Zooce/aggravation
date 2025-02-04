@@ -49,7 +49,7 @@ fn enable_ui(
     let mouse_pressed = mouse_button_inputs.pressed(MouseButton::Left);
 
     for (mut button_state, mut button_sprite, button_transform) in &mut button_query {
-        *button_state = get_button_state(w.cursor_position(), button_transform.translation, UI_BUTTON_SIZE.clone(), mouse_pressed);
+        *button_state = get_button_state(w.cursor_position(), button_transform.translation, UI_BUTTON_SIZE, mouse_pressed);
         button_sprite.color = Color::WHITE;
     }
 }

@@ -16,11 +16,8 @@ pub fn calc_possible_moves(
     let mut possible_moves = BTreeSet::new(); // so we disregard duplicates
 
     if player_data.power_up_status.home_run {
-        let open_home_indexes: Vec<usize> = (FIRST_HOME_INDEX..=LAST_HOME_INDEX).into_iter()
-            .filter_map(|i| match current_player_marbles.iter().find(|(_, m)| m.index == i) {
-                Some(_) => None,
-                None => Some(i),
-            })
+        let open_home_indexes: Vec<usize> = (FIRST_HOME_INDEX..=LAST_HOME_INDEX)
+            .filter(|i| current_player_marbles.iter().find(|(_, m)| m.index == *i).is_none() )
             .collect();
         current_player_marbles.iter()
             // home runs are only for marbles that are not already home

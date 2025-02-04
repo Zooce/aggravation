@@ -11,9 +11,9 @@ use crate::dice_roll::DiceRollPlugin;
 use crate::human_turn::HumanTurnPlugin;
 use crate::next_player::*;
 use crate::power::PowerBar;
-use crate::power::PowerUpHighlights;
+use crate::power::PowerUpHighlightImages;
 use crate::power::PowerUpPlugin;
-use crate::power::PowerUpSpriteSheets;
+use crate::power::PowerUpSpriteImages;
 use crate::process::ProcessMovePlugin;
 use crate::resources::*;
 use crate::shared_systems::*;
@@ -39,7 +39,7 @@ impl Plugin for VexationPlugin {
 
             // --- states + systems -- TODO: move each to their own plugin to keep things smaller?
 
-            .configure_set(Update, SharedSystemSet.run_if(should_run_shared_systems))
+            .configure_sets(Update, SharedSystemSet.run_if(should_run_shared_systems))
             // shared systems
             .add_systems(Update, (
                 animate_marble_moves,
@@ -82,8 +82,9 @@ impl Plugin for VexationPlugin {
 
 pub fn create_game(
     mut commands: Commands,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    mut texture_atlases: ResMut<Assets<TextureAtlasLayout>>,
     mut next_state: ResMut<NextState<GameState>>,
+    mut textures: ResMut<Assets<Image>>,
     asset_server: Res<AssetServer>,
 ) {
     // insert resources
@@ -101,15 +102,15 @@ pub fn create_game(
             (Player::Yellow, PlayerData::default()),
         ]),
     });
-    commands.insert_resource(PowerUpSpriteSheets{
-        roll_again: load_sprite_sheet("power-ups/roll-again-sheet.png", TILE_BUTTON_SIZE.clone(), (3, 1), &asset_server, &mut texture_atlases),
-        double_dice: load_sprite_sheet("power-ups/double-dice-sheet.png", TILE_BUTTON_SIZE.clone(), (3, 1), &asset_server, &mut texture_atlases),
-        evade_capture: load_sprite_sheet("power-ups/evade-capture-sheet.png", TILE_BUTTON_SIZE.clone(), (3, 1), &asset_server, &mut texture_atlases),
-        self_jump: load_sprite_sheet("power-ups/self-jump-sheet.png", TILE_BUTTON_SIZE.clone(), (3, 1), &asset_server, &mut texture_atlases),
-        capture_nearest: load_sprite_sheet("power-ups/capture-nearest-sheet.png", TILE_BUTTON_SIZE.clone(), (3, 1), &asset_server, &mut texture_atlases),
-        home_run: load_sprite_sheet("power-ups/home-run-sheet.png", TILE_BUTTON_SIZE.clone(), (3, 1), &asset_server, &mut texture_atlases),
+    commands.insert_resource(PowerUpSpriteImages{
+        roll_again: load_sprite_sheet("power-ups/roll-again-sheet.png", TILE_BUTTON_SIZE, (3, 1), &asset_server, &mut textures, &mut texture_atlases),
+        double_dice: load_sprite_sheet("power-ups/double-dice-sheet.png", TILE_BUTTON_SIZE, (3, 1), &asset_server, &mut textures, &mut texture_atlases),
+        evade_capture: load_sprite_sheet("power-ups/evade-capture-sheet.png", TILE_BUTTON_SIZE, (3, 1), &asset_server, &mut textures, &mut texture_atlases),
+        self_jump: load_sprite_sheet("power-ups/self-jump-sheet.png", TILE_BUTTON_SIZE, (3, 1), &asset_server, &mut textures, &mut texture_atlases),
+        capture_nearest: load_sprite_sheet("power-ups/capture-nearest-sheet.png", TILE_BUTTON_SIZE, (3, 1), &asset_server, &mut textures, &mut texture_atlases),
+        home_run: load_sprite_sheet("power-ups/home-run-sheet.png", TILE_BUTTON_SIZE, (3, 1), &asset_server, &mut textures, &mut texture_atlases),
     });
-    commands.insert_resource(PowerUpHighlights{
+    commands.insert_resource(PowerUpHighlightImages{
         evading: asset_server.load("power-ups/evade-capture-highlight.png"),
         self_jumping: asset_server.load("power-ups/self-jump-highlight.png"),
     });
@@ -122,35 +123,42 @@ pub fn create_game(
 
     // background
     let mut game_play_entities = GamePlayEntities::default();
-    game_play_entities.board_entities.push(commands.spawn(SpriteBundle{
-        texture: asset_server.load("background.png"),
-        transform: Transform::from_xyz(0., 0., Z_BACKGROUND),
-        ..default()
-    }).id());
+    game_play_entities.board_entities.push(commands.spawn((
+        Sprite{
+            image: asset_server.load("background.png"),
+            ..default()
+        },
+        Transform::from_xyz(0., 0., Z_BACKGROUND),
+    )).id());
     // board
-    game_play_entities.board_entities.push(commands.spawn(SpriteBundle{
-        texture: asset_server.load("board.png"),
-        transform: Transform::from_xyz(0., 0., Z_BOARD),
-        ..default()
-    }).id());
+    game_play_entities.board_entities.push(commands.spawn((
+        Sprite{
+            image: asset_server.load("board.png"),
+            ..default()
+        },
+        Transform::from_xyz(0., 0., Z_BOARD),
+    )).id());
     // TODO: animate power up slots onto the board AFTER the player chooses their color
     // animation idea:
     // → ←
     // → ←
-    game_play_entities.board_entities.push(commands.spawn(SpriteBundle{
-        texture: asset_server.load("power-up-slots.png"),
-        transform: Transform::from_xyz(0., 0., Z_POWER_UP),
-        ..default()
-    }).id());
+    game_play_entities.board_entities.push(commands.spawn((
+        Sprite{
+            image: asset_server.load("power-up-slots.png"),
+            ..default()
+        },
+        Transform::from_xyz(0., 0., Z_POWER_UP),
+    )).id());
     // TODO: animate power bars onto the board AFTER the player chooses their color
     // animation idea:
     // ↓↓
     // ↑↑
-    game_play_entities.board_entities.push(commands.spawn(SpriteBundle{
-        texture: asset_server.load("power-bars.png"),
-        transform: Transform::from_xyz(0., 0., Z_POWER_BAR),
-        ..default()
-    }).id());
+    game_play_entities.board_entities.push(commands.spawn((
+        Sprite{
+            image: asset_server.load("power-bars.png"),
+            ..default()
+        }, Transform::from_xyz(0., 0., Z_POWER_BAR),
+    )).id());
     let power_fill = asset_server.load("power-fill.png");
     for ((x, y), player) in &[
         ((-7.75, 0.), Player::Red),
@@ -159,18 +167,18 @@ pub fn create_game(
         ((7.75, -8.), Player::Blue)
     ] {
         game_play_entities.board_entities.push(commands.spawn((
-            SpriteBundle{
-                texture: power_fill.clone(),
-                transform: Transform::from_xyz(x * TILE_SIZE, y * TILE_SIZE + 2., Z_POWER_FILL),
+            Sprite{
+                image: power_fill.clone(),
                 ..default()
             },
+            Transform::from_xyz(x * TILE_SIZE, y * TILE_SIZE + 2., Z_POWER_FILL),
             PowerBar::new(y * TILE_SIZE + 2.),
             *player,
         )).id());
     }
     // human player turn end UI button
     let sprite_sheet = texture_atlases.add(TextureAtlas::from_grid(
-        asset_server.load("buttons/done_button.png"), UI_BUTTON_SIZE.clone(), 3, 1, None, None
+        asset_server.load("buttons/done_button.png"), UI_BUTTON_SIZE, 3, 1, None, None
     ));
     game_play_entities.board_entities.push(commands
         .spawn(sprite_sheet_button_bundle(
@@ -179,7 +187,7 @@ pub fn create_game(
             ButtonAction(ActionEvent(GameButtonAction::Done)),
             Visibility::Hidden,
             ButtonState::NotHovered,
-            ButtonSize(UI_BUTTON_SIZE.clone()),
+            ButtonSize(UI_BUTTON_SIZE),
         ))
         .insert(Hidable)
         .id()
@@ -310,7 +318,7 @@ pub fn game_end(mut next_state: ResMut<NextState<GameState>>) {
 
 pub fn destroy_game(
     mut commands: Commands,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    mut texture_atlases: ResMut<Assets<TextureAtlasLayout>>,
     mut next_state: ResMut<NextState<GameState>>,
     dice_data: Res<DiceData>,
     game_play_entities: Res<GamePlayEntities>,
